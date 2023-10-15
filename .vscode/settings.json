@@ -1,8 +1,8 @@
 {
     "robloxLsp.diagnostics.severity": {
-        "unused-local": "Error",
-        "unused-function": "Error",
-        "unused-vararg": "Error",
+        "unused-local": "Warning",
+        "unused-function": "Warning",
+        "unused-vararg": "Warning",
         "duplicate-index": "Error"
     },
     "[lua]": {
