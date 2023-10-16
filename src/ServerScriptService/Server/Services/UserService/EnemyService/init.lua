@@ -1,47 +1,46 @@
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Globals = require(ReplicatedStorage.Shared.Globals)
 
 local EnemyService = {}
-EnemyService.Spawns = {}
+EnemyService.Enemies = {}
 
-local MinSpawnDistanceFromPlayer
-local random = Random.new()
-
-function EnemyService:GameInit()
-	for _, spawnPart in ipairs(CollectionService:GetTagged("Spawn")) do
-		local enemyName = spawnPart:GetAttribute("EnemyName")
-		local spawns = self.Spawns[enemyName]
-		if not spawns then
-			spawns = {}
-			self.Spawns[enemyName] = spawns
+local function InitEnemies()
+	for _, enemy in ipairs(script:GetChildren()) do
+		if not enemy:IsA("ModuleScript") then
+			continue
 		end
-		table.insert(spawns, spawnPart)
+		EnemyService.Enemies[enemy.Name] = require(enemy)
 	end
 end
 
-function EnemyService:SpawnEnemy(enemyName)
-	local enemyModule = script:FindFirstChild(enemyName)
+local function InitSpawners()
+	for _, spawnPart in ipairs(CollectionService:GetTagged("Spawner")) do
+		local enemy = EnemyService.Enemies[spawnPart:GetAttribute("EntityName")]
+		print(enemy)
+		if enemy then
+			table.insert(enemy.Spawns, spawnPart)
+		end
+	end
+end
+
+function EnemyService:SpawnEnemy(enemyName: string, position: Vector3?)
+	local enemyModule = self.Enemies[enemyName]
 	if not enemyModule then
 		error(`No such enemy ${enemyName}`)
 	end
 
-	local player = game.Players:GetChildren()[1]
-
-	local spawnpoint = waypoints[random:NextInteger(1, #waypoints)]
-	if player and player.Character then
-		while (spawnpoint - player.Character.Origin.Position).Magnitude < MinSpawnDistanceFromPlayer do
-			spawnpoint = waypoints[random:NextInteger(1, #waypoints)]
-		end
-	end
-
-	self:SpawnEnemyAt(enemyName, waypoints, spawnpoint)
+	return enemyModule.new(position)
 end
 
-function EnemyService:SpawnEnemyAt(enemyName, spawnpoint)
-	return enemyModule.new(waypoints, spawnpoint)
+function EnemyService:GameInit()
+	InitEnemies()
+	InitSpawners()
 end
 
 function EnemyService:GameStart()
-	self:SpawnEnemy("Enemy1", 0)
+	self:SpawnEnemy("Enemy1")
 end
 
 return EnemyService
