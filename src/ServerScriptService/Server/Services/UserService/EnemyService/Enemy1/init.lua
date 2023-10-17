@@ -15,62 +15,6 @@ Enemy1.Spawns = {}
 
 local Random = Random.new()
 
-function Enemy1:GameInit() end
-
-local function GetRandomRetryWithCondition(array, condition)
-	local spawnpoint = array[math.random(1, #array)]
-	local player = game.Players:GetChildren()[1]
-	if player and player.Character then
-		while not condition(spawnpoint) do
-			spawnpoint = array[math.random(1, #array)]
-		end
-	end
-end
-
-local function GetRandomSpawnpoint()
-	local currentPlayer = game.Players:GetChildren()[1]
-
-	if currentPlayer and currentPlayer.Character then
-		return GetRandomRetryWithCondition(Enemy1.Spawns, function(spawn)
-			return (spawn.Position - currentPlayer.Character.Origin.Position).Magnitude
-				< EnemyConfig.MinSpawnDistanceFromPlayer
-		end)
-	end
-
-	return Enemy1.Spawns[math.random(1, #Enemy1.Spawns)]
-end
-
-function Enemy1.new(spawnPosition)
-	local janitor = Janitor.new()
-
-	spawnPosition = spawnPosition or GetRandomSpawnpoint().Position
-
-	local enemyModel = janitor:Add(EnemyFolder.Model:Clone())
-	enemyModel.Parent = workspace
-	enemyModel:PivotTo(CFrame.Angles(0, Random:NextNumber(0, 2 * math.pi), 0) + spawnPosition)
-
-	local blackboard = {
-		Model = enemyModel,
-		Target = nil,
-	}
-	local Brain = janitor:Add(BehaviorTreeCreator:Create(EnemyFolder.Brain.Value, blackboard), "Destroy")
-	local Path = janitor:Add(SimplePath.new(enemyModel), "Destroy")
-	Janitor:Add(RunService.PostSimulation:Connect(function()
-		Brain:run()
-		if blackboard.Target then
-			Path:Run(blackboard.Target)
-		else
-			Path:Stop()
-		end
-	end))
-
-	return {
-		Name = script.Name,
-		Path = Path,
-		Janitor = Janitor,
-	}
-end
-
 local function PickRandomWithWeight(array, weightFunction)
 	local selectable = {}
 
@@ -96,6 +40,116 @@ local function PickRandomWithWeight(array, weightFunction)
 
 		return v
 	end
+end
+
+local function GetCurrentPlayerCharacter()
+	local player = game.Players:GetChildren()[1]
+	if player and player.Character and player.Character.Parent then
+		return player.Character
+	end
+end
+
+local function GetRandomRetryWithCondition(array, condition)
+	local spawnpoint = array[math.random(1, #array)]
+	
+	if character then
+		while not condition(spawnpoint) do
+			spawnpoint = array[math.random(1, #array)]
+		end
+	end
+end
+
+local function GetRandomSpawnpoint()
+	local character = GetCurrentPlayerCharacter()
+	if character then
+		return GetRandomRetryWithCondition(Enemy1.Spawns, function(spawn)
+			return (spawn.Position - character.Origin.Position).Magnitude
+				< EnemyConfig.MinSpawnDistanceFromPlayer
+		end)
+	end
+
+	return Enemy1.Spawns[math.random(1, #Enemy1.Spawns)]
+end
+
+local function GetWaypointGraph(waypointFolder)
+    local graph = {}
+
+    for _, waypoint in ipairs(waypointFolder) do
+        local overlapParams = OverlapParams.new()
+        overlapParams.FilterType = Enum.RaycastFilterType.Include
+		overlapParams.FilterDescendantsInstances = {waypointFolder}
+        overlapParams.BruteForceAllSlow = true
+        graph[waypoint] = workspace:GetPartsInPart(waypoint, overlapParams)
+    end
+
+    return graph
+end
+
+function Enemy1:GameInit() end
+
+function Enemy1.new(waypoints, spawnWaypoint)
+	local janitor = Janitor.new()
+
+	local spawnPosition = spawnWaypoint.Position
+
+	local enemyModel = janitor:Add(EnemyFolder.Model:Clone())
+	enemyModel.Parent = workspace
+	enemyModel:PivotTo(CFrame.Angles(0, Random:NextNumber(0, 2 * math.pi), 0) + spawnPosition)
+
+	local blackboard = {
+		Model = enemyModel,
+		Target = nil,
+	}
+	
+	local Brain = janitor:Add(BehaviorTreeCreator:Create(EnemyFolder.Brain.Value, blackboard), "Destroy")
+	local Path = janitor:Add(SimplePath.new(enemyModel), "Destroy")
+	Janitor:Add(RunService.PostSimulation:Connect(function()
+		Brain:run()
+		if blackboard.Target then
+			Path:Run(blackboard.Target)
+		else
+			Path:Stop()
+		end
+	end))
+
+	return {
+		Name = script.Name,
+		Path = Path,
+		Model = enemyModel,
+		WaypointFolder = workspace.Waypoints,
+		CurrentWaypoint = spawnWaypoint,
+		WaypointGraph = GetWaypointGraph(workspace.Waypoints),
+		WaypointsLastVisited = {},
+		Janitor = Janitor,
+	}
+end
+
+function Enemy1:GetNextRoamPoint()
+	local overlapParams = OverlapParams.new()
+	overlapParams.FilterType = Enum.RaycastFilterType.Include
+	overlapParams.FilterDescendantsInstances = {self.WaypointFolder}
+
+	local nextWaypoint
+
+	local overlappedWaypoints = workspace:GetPartsInPart(self.Model.WaypointDetector)
+	if #overlappedWaypoints == 0 then
+		-- pick random waypoint
+
+	end
+	
+	local currentCharacter = GetCurrentPlayerCharacter()
+	if currentCharacter then
+		local distance = (currentCharacter.Origin.Position - self.Model.Origin.Position).Magnitude
+		
+		if distance > RETURN_TO_CHARACTER_DISTANCE then
+			
+		elseif distance > 
+		end
+
+	end
+
+	local currentWaypoint = overlappedWaypoints[1]
+	local potentialNextWaypoints = self.WaypointGraph[currentWaypoint]
 end
 
 -- function Enemy1.GetNextRoamPoint(self)
